@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secret Playlist</title>
+
+<style>
+:root{
+  --c1:#22d3ee;
+  --c2:#a855f7;
+  --c3:#f97316;
+  --ink:#e5e7eb;
+  --muted:#94a3b8;
+}
+
+*{
+  margin:0; padding:0;
+  box-sizing:border-box;
+  font-family:"Pretendard",sans-serif;
+}
+
+/* 스크롤바 제거 */
+body::-webkit-scrollbar{display:none;}
+body{-ms-overflow-style:none; scrollbar-width:none;}
+
+body{
+  background:#05050a;
+  color:var(--ink);
+  overflow-x:hidden;
+}
+body.lock-scroll{
+  overflow:hidden;
+}
+
+/* ============================
+        🔥 문 애니메이션
+============================ */
+.door{
+  position:fixed;
+  top:0;
+  width:50%;
+  height:100vh;
+  background:#07070d;
+  z-index:50;
+  opacity:1;
+  transition:opacity .9s ease-out;
+}
+
+.left-door{ left:0; border-right:1px solid #0c0c12; }
+.right-door{ right:0; border-left:1px solid #0c0c12; }
+
+.open-left{
+  transform:translateX(-100%);
+  transition:transform 1.2s cubic-bezier(.12,.85,.18,1.1);
+}
+.open-right{
+  transform:translateX(100%);
+  transition:transform 1.2s cubic-bezier(.12,.85,.18,1.1);
+}
+
+/* 문 뒤 라이트 — 자연 페이드 */
+.door-light{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle at center,
+    rgba(255,255,255,0.8),
+    rgba(255,255,255,0.15),
+    transparent 70%);
+  opacity:0;
+  z-index:40;
+  pointer-events:none;
+  filter:blur(20px); /* 🔥 최적화됨 */
+  transition:opacity 1.3s ease-out;
+}
+
+/* 플래시 */
+.flash{
+  position:fixed;
+  inset:0;
+  background:white;
+  opacity:0;
+  z-index:100;
+  pointer-events:none;
+  transition:opacity 0.45s ease-out;
+}
+
+/* ============================
+      🔑 열쇠 애니메이션
+============================ */
+.key-container{
+  position:fixed;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  z-index:60;
+  text-align:center;
+  cursor:pointer;
+}
+
+.key{
+  font-size:65px;
+  animation:keyFloat 2.1s infinite ease-in-out;
+  filter:drop-shadow(0 0 12px rgba(255,255,255,0.5));
+}
+@keyframes keyFloat{
+  0%,100%{ transform:translateY(0); }
+  50%{ transform:translateY(-10px); }
+}
+
+.key-container.unlock .key{
+  animation:unlockSpin 1s ease forwards;
+}
+
+@keyframes unlockSpin{
+  0%{ transform:scale(1) rotate(0); }
+  40%{ transform:scale(1.25) rotate(80deg); }
+  100%{ transform:scale(0) rotate(200deg); opacity:0; }
+}
+
+.key-text{
+  font-size:15px;
+  margin-top:10px;
+  color:var(--muted);
+  letter-spacing:0.18em;
+  transition:.3s;
+}
+.key-container.unlock .key-text{
+  opacity:0;
+}
+
+/* ============================
+      ✨ HERO 텍스트
+============================ */
+.hero{
+  position:fixed;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(1.25);
+  text-align:center;
+  opacity:0;
+  z-index:5;
+  transition:opacity 1.2s ease,transform 1.5s ease,filter 1.2s ease;
+}
+.hero.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+.hero.behind{
+  opacity:0.25;
+  transform:translate(-50%,-50%) scale(.7);
+  filter:blur(3px);
+  z-index:-10;
+}
+
+.hero-title{
+  font-size: clamp(45px, 7vw, 80px);
+  font-weight:900;
+  background:linear-gradient(120deg,var(--c1),var(--c2),var(--c3));
+  -webkit-background-clip:text;
+  color:transparent;
+  filter:drop-shadow(0 0 30px rgba(34,211,238,0.7));
+}
+
+.hero-sub{
+  margin-top:12px;
+  font-size:20px;
+  color:#a0aec0;
+}
+
+/* 배경 빛 */
+.background-light{
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(34,211,238,.35), transparent 60%),
+    radial-gradient(circle at 80% 70%, rgba(168,85,247,.35), transparent 60%),
+    radial-gradient(circle at 50% 100%, rgba(249,115,22,.25), transparent 60%);
+  filter:blur(80px);
+  opacity:0;
+  transition:opacity 1.4s ease;
+  z-index:-5;
+}
+
+/* ============================
+        콘텐츠
+============================ */
+.content{
+  margin-top:100vh;
+  padding-bottom:200px;
+}
+
+.section{
+  max-width:900px;
+  margin:0 auto;
+  padding:150px 30px;
+  opacity:0;
+  transform:translateY(40px);
+  transition:1s ease;
+}
+.section.active{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.section-title{
+  font-size:40px;
+  text-align:center;
+  font-weight:700;
+}
+
+.divider{
+  height:3px;
+  background:linear-gradient(90deg,var(--c1),var(--c2),var(--c3));
+  width:180px;
+  margin:20px auto 50px;
+  border-radius:3px;
+  animation:glowline 3s infinite;
+}
+
+@keyframes glowline{
+  0%,100%{opacity:.6;}
+  50%{opacity:1;}
+}
+
+/* ============================
+      가로 라인업
+============================ */
+.secret-lineup{
+  overflow-x:auto;
+  white-space:nowrap;
+  padding:20px;
+}
+.secret-lineup::-webkit-scrollbar{display:none;}
+
+.secret-card{
+  display:inline-block;
+  width:240px;
+  height:170px;
+  margin:0 25px;
+  background:#0b0b13;
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,0.06);
+  position:relative;
+  cursor:pointer;
+  overflow:hidden;
+  transition:.35s;
+  box-shadow:0 0 25px rgba(0,0,0,.5);
+}
+.secret-card:hover{
+  transform:translateY(-8px);
+  box-shadow:0 0 35px rgba(34,211,238,.35);
+}
+
+.secret-card::before{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 50% 130%, rgba(34,211,238,.18), transparent 65%),
+    radial-gradient(circle at 20% 20%, rgba(168,85,247,.18), transparent 65%),
+    radial-gradient(circle at 80% 10%, rgba(249,115,22,.14), transparent 50%);
+  opacity:.22;
+  transition:.35s;
+}
+.secret-card:hover::before{
+  opacity:.5;
+}
+
+.secret-title{
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  color:#ffffff18;
+  font-size:40px;
+  font-weight:900;
+  transition:.45s;
+}
+
+.secret-reveal{
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,20%);
+  opacity:0;
+  font-size:26px;
+  font-weight:700;
+  background:linear-gradient(120deg,var(--c1),var(--c2),var(--c3));
+  -webkit-background-clip:text;
+  color:transparent;
+  transition:.45s;
+}
+
+.secret-card:hover .secret-title{
+  opacity:0;
+  transform:translate(-50%,-80%);
+}
+
+.secret-card:hover .secret-reveal{
+  opacity:1;
+  transform:translate(-50%,-50%);
+}
+
+/* 푸터 */
+.footer{
+  text-align:center;
+  padding:80px 0 20px;
+  color:#7b7c8d;
+  font-size:14px;
+}
+</style>
+</head>
+<body>
+
+<!-- 문 뒤 라이트 -->
+<div class="door-light" id="doorLight"></div>
+
+<!-- 플래시 -->
+<div class="flash" id="flash"></div>
+
+<!-- 문 -->
+<div class="left-door door"></div>
+<div class="right-door door"></div>
+
+<!-- 열쇠 -->
+<div class="key-container" id="keyBtn">
+  <div class="key">🔑</div>
+  <div class="key-text">click to unlock</div>
+</div>
+
+<!-- HERO -->
+<div class="hero" id="hero">
+  <div class="hero-title">SECRET PLAYLIST</div>
+  <div class="hero-sub">숨겨진 명곡을, 이 세계에 공개하다.</div>
+</div>
+
+<!-- 배경 빛 -->
+<div class="background-light" id="bgLight"></div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <div class="section">
+    <div class="section-title">Secret Playlist Live</div>
+    <div class="divider"></div>
+    <div class="section-text" style="text-align:center;">
+      문이 열리는 순간,<br>
+      당신은 아티스트들의 숨겨진 세계에 입장합니다.
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Line-Up</div>
+    <div class="divider"></div>
+
+    <div class="secret-lineup">
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist A</div></div>
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist B</div></div>
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist C</div></div>
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist D</div></div>
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist E</div></div>
+      <div class="secret-card"><div class="secret-title">???</div><div class="secret-reveal">Artist F</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Event Info</div>
+    <div class="divider"></div>
+    <div class="section-text" style="text-align:center;">
+      📅 2025. 00. 00 (SAT)<br>
+      ⏱ PM 7:30 – PM 10:00<br>
+      📍 리얼월드 페스티벌장
+    </div>
+  </div>
+
+  <div class="footer">Ⓡ Riz entertainment</div>
+</div>
+
+<script>
+const keyBtn=document.getElementById("keyBtn");
+const leftDoor=document.querySelector(".left-door");
+const rightDoor=document.querySelector(".right-door");
+const hero=document.getElementById("hero");
+const bgLight=document.getElementById("bgLight");
+const doorLight=document.getElementById("doorLight");
+const flash=document.getElementById("flash");
+
+keyBtn.onclick=()=>{
+
+  keyBtn.classList.add("unlock");
+  keyBtn.style.pointerEvents="none";
+
+  /* 문 여는 동작 */
+  setTimeout(()=>{
+    leftDoor.classList.add("open-left");
+    rightDoor.classList.add("open-right");
+  },350);
+
+  /* 문 뒤 라이트 ON */
+  setTimeout(()=>{
+    doorLight.style.opacity="1";
+  },250);
+
+  /* 플래시 */
+  setTimeout(()=>{ flash.style.opacity="1"; },700);
+  setTimeout(()=>{ flash.style.opacity="0"; },1000);
+
+  /* HERO 등장 */
+  setTimeout(()=>{
+    hero.classList.add("show");
+    bgLight.style.opacity="1";
+  },1300);
+
+  /* HERO 뒤로 */
+  setTimeout(()=>{ hero.classList.add("behind"); },2600);
+
+  /* 문 + 라이트 부드럽게 제거 */
+  setTimeout(()=>{
+
+    /* 문 자체 페이드아웃 */
+    leftDoor.style.opacity="0";
+    rightDoor.style.opacity="0";
+
+    /* 라이트 페이드 */
+    doorLight.style.opacity="0";
+
+    /* 0.9초 뒤 클릭 불가 처리 */
+    setTimeout(()=>{
+      leftDoor.style.pointerEvents="none";
+      rightDoor.style.pointerEvents="none";
+      doorLight.style.pointerEvents="none";
+    },900);
+
+    document.body.classList.remove("lock-scroll");
+
+  },2000);
+
+  window.scrollTo(0,0);
+  document.body.classList.add("lock-scroll");
+};
+
+/* 스크롤 섹션 등장 */
+const sections=document.querySelectorAll(".section");
+window.addEventListener("scroll",()=>{
+  const trigger=window.innerHeight*0.85;
+  sections.forEach(s=>{
+    if(s.getBoundingClientRect().top<trigger){
+      s.classList.add("active");
+    }
+  });
+});
+</script>
+
+</body>
+</html>
